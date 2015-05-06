@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="Ini" script:language="StarBasic">REM  *****  BASIC  *****
+
+Option Explicit
+
+Private delimit as String
+
+Type KeyValuePairs
+	key() as String
+	value() as String
+End Type
+
+Function iniGetValue (pairs as Object, key as String) as String
+&apos; returns value of key within given set of pairs
+
+	dim i as Integer
+
+	iniGetValue = &quot;&quot;
+	if IsNull(pairs) then
+		exit Function
+	end if
+	i = 0
+	do while pairs.key(i) &lt;&gt; &quot;&quot;
+		if pairs.key(i) = key then
+			iniGetValue = pairs.value(i)
+			exit Function
+		end if
+		i = i + 1
+	loop
+
+End Function
+
+Function readIniFile (dir as String, app as String) as Object
+&apos; returns set of key/value pairs
+&apos; last entry will be empty strings
+
+	dim myIniUrl as String
+	dim myIniNo as Integer
+	dim myKey as String
+	dim myValue as String
+	dim keys as String, values as String
+	dim aKeys() as String, aValues() as String
+	dim pairs as KeyValuePairs
+	dim i as Integer
+
+	delimit = Chr(10)
+	myIniUrl = getIniUrl(dir,app)
+	if FileExists(myIniUrl) then
+		myIniNo = FreeFile
+		myKey = &quot;&quot;
+		myValue = &quot;&quot;
+		Open myIniUrl for input as myIniNo
+		do while readIniPair(myIniNo,myKey,myValue)
+			keys = keys + myKey + delimit
+			values = values + myValue + delimit
+		loop
+	end if
+	if keys = &quot;&quot; then
+		aKeys = Array(&quot;&quot;)
+	else
+		aKeys = Split(keys,delimit)
+	end if
+	if values = &quot;&quot; then
+		aValues = Array(&quot;&quot;)
+	else
+		aValues = Split(values,delimit)
+	end if
+	pairs.key = aKeys
+	pairs.value = aValues
+	readIniFile = pairs
+
+End Function
+
+Sub writeIniFile (pairs as Object, dir as String, app as String)
+
+	dim iniUrl as String, iniFile as Integer
+
+	on local error goto NoIni
+	iniUrl = getIniUrl(dir,app)
+	iniFile = FreeFile
+	open iniUrl for output as iniFile
+	print #iniFile, &quot;# MuseScore Example Manager&quot;
+	if not IsNull(pairs) then
+		dim i as Integer
+		i = 0
+		do while pairs.key(i) &lt;&gt; &quot;&quot;
+			print #iniFile, pairs.key(i) + &quot;=&quot; + pairs.value(i)
+			i = i + 1
+		loop
+	end if
+	close #iniFile
+	exit Sub
+
+NoIni:
+	myMsgBox(&quot;unable to create &quot;+iniUrl)
+	
+End Sub
+
+Sub iniAddPair (pairs as Object, key as String, value as String, dir as String, app as String) as String
+&apos; prompts for value, add key/value to pairs
+&apos; if app is non-empty, write the updated INI file
+
+	dim keys as String, values as String
+	dim aKeys() as String, aValues() as String
+
+	keys = key + delimit + Join(pairs.key,delimit)
+	values = value + delimit + Join(pairs.value,delimit)
+	aKeys = Split(keys,delimit)
+	aValues = Split(values,delimit)
+	pairs.key = aKeys
+	pairs.value = aValues
+
+	if app &lt;&gt; &quot;&quot; then
+		writeIniFile(pairs,dir,app)
+	end if
+
+End Sub
+
+Function getIniUrl (dir as String, app as String) as String
+&apos; returns URL of system-appropriate INI folder for app
+	static url as String
+	if url = &quot;&quot; then
+		select case getOS
+			case &quot;Windows&quot;: url = Environ(&quot;ALLUSERSPROFILE&quot;) + &quot;\&quot; + dir + &quot;\&quot;
+			case &quot;Unix&quot;: url = Environ(&quot;HOME&quot;) + &quot;/.&quot; + dir + &quot;/&quot;
+			case &quot;MacOS&quot;: url = Environ(&quot;HOME&quot;) + &quot;/.&quot; + dir + &quot;/&quot;
+		end select
+		url = ConvertToURL(url+app+&quot;.ini&quot;)
+	end if
+	getIniUrl = url
+End Function
+
+Function readIniPair (ByVal f as Integer, ByRef iniKey as String, ByRef iniValue as String) as Boolean
+&apos; reads one key/value pair from file f
+&apos; modifies k and and v
+&apos; returns true if there was anything to read
+
+	dim s as String
+	dim p as Integer, l as Integer
+
+	readIniPair = false
+	do while not eof(f)
+		line input #f, s
+		if Left(s,1) &lt;&gt; &quot;#&quot; then
+			l = len(s)
+			p = InStr(s,&quot;=&quot;) 
+			if p &lt;&gt; 0 then
+				iniKey = Left(s,p-1)
+				iniValue = Right(s,l-p)
+				readIniPair = true
+				exit do
+			end if
+		end if
+	loop
+
+End Function
+
+Function getOS as String
+	static os as String
+	if os = &quot;&quot; then
+		select case GetGUIType
+		case 1:
+			os = &quot;Windows&quot;
+		case 3:
+			os = &quot;MacOS&quot;
+		case 4:
+			os = &quot;Unix&quot;
+		end select
+	end if
+	getOS = os
+End Function
+
+</script:module>

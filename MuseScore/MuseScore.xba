@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="MuseScore" script:language="StarBasic">REM  *****  BASIC  *****
+
+option Explicit
+
+Sub MuseScore
+
+	dim o as Object
+	dim msczUrl as String, graphicUrl as String
+
+	on error goto labelErrorHandler
+
+	&apos; initialization
+	initExample
+
+	&apos; get current selection
+	o = thisComponent.getCurrentSelection
+
+	if o.supportsService(&quot;com.sun.star.text.TextRanges&quot;) then
+	&apos; cursor/selection is in text
+
+		msczUrl = userSelectExampleName(true,&quot;&quot;,&quot;*.mscz&quot;)
+		if msczUrl = &quot;&quot; then
+			exit Sub
+		end if
+		graphicUrl = changeExtension(msczUrl,&quot;png&quot;)
+
+		&apos; (re)generate the graphic if necessary
+		msczToGraphic(ConvertFromURL(msczUrl),ConvertFromURL(graphicUrl),false)
+
+		&apos; insert the example
+		insertExample(graphicUrl,msczUrl,&quot;&quot;)
+
+	elseif o.supportsService(&quot;com.sun.star.text.TextGraphicObject&quot;) then
+	&apos; cursor/selection is a graphic
+
+		updateMuseScore(o)
+
+	end if
+
+	exit Sub
+
+labelErrorHandler:
+	myMsgBox(&quot;An unknown error occurred&quot;)
+
+End Sub
+
+&apos; regenerate graphic if necessary
+Sub updateMuseScore (o as Object)
+
+	dim graphicUrl as String
+
+	graphicUrl = msczToGraphic(ConvertFromURL(o.HyperLinkUrl),ConvertFromURL(o.GraphicURL),false)
+	if graphicUrl &lt;&gt; &quot;&quot; then
+		updateExample(o,graphicUrl)
+	end if
+
+End Sub
+
+&apos; converts MSCZ to PNG
+&apos; returns URL of PNG
+&apos; returns &quot;&quot; on failure or if PNG was already up to date
+Function msczToGraphic (msczPath as String, graphicPath as String, force as Boolean) as String
+
+	dim args as String, pngPath as String
+
+	msczToGraphic = &quot;&quot;
+
+	if not newer(graphicPath,msczPath) or force then
+
+		&apos; convert MSCZ to PNG		
+		args = &quot;-T 0&quot; + &quot; -r &quot; + pngResolution + &quot; &quot; + quote+msczPath+quote + &quot; -o &quot; + quote+graphicPath+quote
+		if myShell(&quot;mscore&quot;,6,args,true) &lt;&gt; 0 then
+			myMsgBox(&quot;unable to convert MSCZ to PNG&quot;)
+			exit Function
+		end if
+		pngPath = basePath(graphicPath) + &quot;-1.png&quot;
+		if not newer(pngPath,msczPath) then
+			myMsgBox(&quot;unable to convert MSCZ to PNG&quot;)
+			exit Function
+		end if
+
+		&apos; MuseScore creates graphic with page 1 only; rename to main filename
+		if FileExists(graphicPath) then
+			on error goto labelFileBusy
+			SFA.kill(graphicPath)
+			on error goto 0
+		end if
+		SFA.move(pngPath,graphicPath)
+
+		&apos; trim PNG
+		&apos;args = &quot;-trim -units PixelsPerInch -density 300 &quot; + quote+graphicPath+quote
+		&apos;if myShell(&quot;mogrify&quot;,6,args,true) &lt;&gt; 0 then
+		&apos;	myMsgBox(&quot;unable to trim PNG&quot;)
+		&apos;	exit Function
+		&apos;end if
+
+		msczToGraphic = ConvertToURL(graphicPath)
+
+	end if
+
+	exit Function
+
+labelFileBusy:
+	myMsgBox(&quot;Unable to overwrite &quot;+graphicPath)
+
+End Function
+
+</script:module>

@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="Abc" script:language="StarBasic">REM  *****  BASIC  *****
+
+Option Explicit
+
+Sub ABC
+
+	dim o as Object
+	dim msczUrl as String, graphicURL as String
+
+	on error goto labelErrorHandler
+
+	&apos; initialization
+	initExample
+	
+	&apos; get current selection
+	o = thisComponent.getCurrentSelection
+
+	if o.supportsService(&quot;com.sun.star.text.TextRanges&quot;) then
+	&apos; cursor/selection is in text
+
+		dim i as Integer
+		dim xName as String, abc as String
+
+		&apos; collect selected text
+		for i = 0 to o.getCount - 1
+			abc = abc + o.getByIndex(i).getString
+		next
+		normalizeAbc(abc)
+
+		if abc &lt;&gt; &quot;&quot; then
+		&apos; text is selected - treat as ABC and create example from it
+			xName = getAbcField(abc,&quot;X:&quot;,&quot;&quot;) + &quot;.mscz&quot;
+			msczUrl = userSelectExampleName(false,xName,&quot;*.mscz&quot;)
+			if msczUrl = &quot;&quot; then
+				exit Sub
+			end if
+			graphicURL = createAbcExample(abc,msczURL)
+			if graphicURL = &quot;&quot; then
+				exit Sub
+			end if
+		else
+		&apos; nothing selected, nothing to do
+			myMsgBox(&quot;No ABC selected&quot;)
+			exit Sub
+		end if
+
+		&apos; insert the example
+		insertExample(graphicURL,msczUrl,abc)
+
+	elseif o.supportsService(&quot;com.sun.star.text.TextGraphicObject&quot;) then
+	&apos; cursor/selection is a graphic
+
+		o.Description = getAbc(o)
+		if o.Description &lt;&gt; &quot;&quot; then
+			myMsgBox(&quot;Description updated:&quot;+Chr(10)+Chr(10)+o.Description)
+		end if
+
+	end if
+
+	exit Sub
+
+labelErrorHandler:
+	myMsgBox(&quot;An unknown error occurred&quot;)
+
+End Sub
+
+&apos; collect selected text as ABC
+&apos; convert selected text to MusicXML file and then to MSCZ and to PNG (based on name of graphic)
+&apos; trim graphic
+&apos; returns URL of graphic on success, &quot;&quot; otherwise
+Function createAbcExample (abc as String, msczURL as String) as String
+
+	dim abcPath as String, xmlPath as String, msczPath as String, pngPath as String, graphicPath as String
+	dim args as String
+	dim abcFileNo as Integer
+
+	createAbcExample = &quot;&quot;
+
+	msczPath = ConvertFromURL(msczURL)
+	abcPath = changeExtension(msczPath,&quot;abc&quot;)
+	xmlPath = changeExtension(msczPath,&quot;xml&quot;)
+	graphicPath = changeExtension(msczPath,&quot;png&quot;)
+
+	&apos; write ABC to file
+	abcFileNo = FreeFile
+	Open abcPath for output as abcFileNo
+	Print #abcFileNo, abc
+	Close #abcFileNo
+
+	&apos; convert ABC to MusicXML
+	dim pSpace as String, pLeft as String, pRight as String, pTop as String, pBottom as String
+	dim pWidth as String, pHeight as String
+	pSpace = fixDouble(exampleScale)
+	pHeight = fixDouble(documentPageStyle.Height / 100)
+	pWidth = fixDouble(documentPageStyle.Width / 100)
+	pLeft = fixDouble(documentPageStyle.LeftMargin / 100)
+	pRight = fixDouble(documentPageStyle.RightMargin / 100 + exampleMargin)
+	pTop = fixDouble(documentPageStyle.TopMargin / 100)
+	pBottom = fixDouble(documentPageStyle.BottomMargin / 100)
+	args = quote+abcPath+quote + &quot; -o . -p &quot; + pSpace+&quot;,&quot;+pHeight+&quot;,&quot;+pWidth+&quot;,&quot;+pLeft+&quot;,&quot;+pRight+&quot;,&quot;+pTop+&quot;,&quot;+pBottom
+	if myShell(&quot;abc2xml&quot;,6,args,true) &lt;&gt; 0 then
+		myMsgBox(&quot;unable to convert ABC to MusicXML&quot;)
+		exit Function
+	end if
+	if not newer(xmlPath,abcPath) then
+		myMsgBox(&quot;unable to convert ABC to MusicXML&quot;)
+		exit Function
+	end if
+
+	&apos; convert MusicXML to MSCZ
+	args = quote+xmlPath+quote + &quot; -o &quot; + quote+msczPath+quote
+	dim msczStyle as String
+	&apos; OK to use &quot;/&quot; since this is a URL
+	msczStyle = documentDirectory + &quot;/&quot; + &quot;example.mss&quot;
+	if FileExists(msczStyle) then
+		msczStyle = quote+ConvertFromURL(msczStyle)+quote
+		args = &quot;-S &quot; + msczStyle + &quot; &quot; + args
+	end if
+	if myShell(&quot;mscore&quot;,6,args,true) &lt;&gt; 0 then
+		myMsgBox(&quot;unable to convert MusicXML to MSCZ&quot;)
+		exit Function
+	end if
+	if not newer(msczPath,xmlPath) then
+		myMsgBox(&quot;unable to convert MusicXML to MSCZ&quot;)
+		exit Function
+	end if
+
+	&apos; generate graphic
+	&apos; since generation will always be necessary,
+	&apos; empty return value will indicate failure of some kind
+	createAbcExample = msczToGraphic(msczPath,graphicPath,true)
+
+	&apos; invoke MuseScore GUI (but don&apos;t wait)
+	args = quote+msczPath+quote
+	myShell(&quot;mscore&quot;,1,args,false)
+
+End Function
+
+&apos; get ABC corresponding to mscz file
+Function getAbc (o as Object) as String
+
+	dim msczPath as String, xmlPath as String, abcPath as String
+	dim args as String, abc as String, abcLine as String
+	dim abcFileNo as Integer
+
+	getAbc = &quot;&quot;
+
+	msczPath = ConvertFromURL(o.HyperLinkURL)
+	xmlPath = changeExtension(msczPath,&quot;xml&quot;)
+	abcPath = changeExtension(msczPath,&quot;abc&quot;)
+
+	if not newer(abcPath,msczPath) then
+	
+		&apos; convert MSCZ to MusicXML
+		args = quote+msczPath+quote + &quot; -o &quot; + quote+xmlPath+quote
+		if myShell(&quot;mscore&quot;,6,args,true) &lt;&gt; 0 then
+			myMsgBox(&quot;unable to convert MSCZ to MusicXML&quot;)
+			exit Function
+		end if
+		if not newer(xmlPath,msczPath) then
+			myMsgBox(&quot;unable to convert MSCZ to MusicXML&quot;)
+			exit Function
+		end if
+
+		&apos; convert MusicXML to ABC
+		args = quote+xmlPath+quote + &quot; -o .&quot;
+		if myShell(&quot;xml2abc&quot;,6,args,true) &lt;&gt; 0 then
+			myMsgBox(&quot;unable to convert MusicXML to ABC&quot;)
+			exit Function
+		end if
+		if not newer(abcPath,xmlPath) then
+			myMsgBox(&quot;unable to convert MusicXML to ABC&quot;)
+			exit Function
+		end if
+
+	end if
+
+	abcFileNo = FreeFile
+	Open abcPath for input as abcFileNo
+	abc = &quot;&quot;
+	do while not EOF(abcFileNo)
+		Line Input #abcFileNo, abcLine
+		abc = abc + abcLine + Chr(10)
+	loop
+	Close #abcFileNo
+
+	getAbc = abc
+
+End Function
+
+Function getAbcField (myText as String, myField as String, myDefault as String) as String
+&apos; returns the first instance of the specified ABC field with the specified text,
+&apos; or the specified default if the field is not found
+
+	dim startpos as Integer, endpos as Integer
+	dim ret as String
+
+	startpos = InStr(myText,myField)
+	if startpos = 0 then
+		getAbcField = myDefault
+	else
+		startpos = startpos + Len(myField)
+		endpos = InStr(startpos,myText,Chr(10))
+		getAbcField = mid(myText,startpos,endpos-startpos)
+	end if
+
+End Function
+
+&apos; deletes single carriage returns, converts matched to straight quotes
+Sub normalizeAbc (ByRef myAbc as String)
+
+	dim i as Integer, c as Integer, length as integer
+
+	i = 1
+	do while i &lt;= Len(myAbc)
+		c = Asc(Mid(myAbc,i,1))
+		if c = 13 then
+			Mid(myAbc,i,1,&quot;&quot;)
+		else
+			i = i + 1
+		end if
+	loop
+	length = i - 1
+	for i = 1 to length
+		c = Asc(Mid(myAbc,i,1))
+		if c = 8220 or c = 8221 then
+			Mid(myAbc,i,1,Chr(34))
+		elseif c = 8216 or c = 8217 then
+			Mid(myAbc,i,1,Chr(39))
+		end if
+	next
+
+End Sub
+
+&apos; in some locales, &quot;,&quot; is used in conversion of double to string
+&apos; this function replaces &quot;,&quot; with &quot;.&quot;
+Function fixDouble (s as Double) as String
+
+	dim t as String, i as Integer
+
+	t = CStr(s)
+	i = InStr(t,&quot;,&quot;)
+	if i &gt; 0 then
+		mid(t,i,1,&quot;.&quot;)
+	end if
+	fixDouble = Trim(t)
+
+End Function
+
+</script:module>

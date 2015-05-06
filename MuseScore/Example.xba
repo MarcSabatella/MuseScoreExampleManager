@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="Example" script:language="StarBasic">REM  *****  BASIC  *****
+
+Option Explicit
+
+Public pngResolution as Integer
+Public exampleScale as Double
+Public exampleMargin as Double
+
+Public extensionName as String
+Public extensionTitle as String
+Public iniKeyValuePairs as Object
+
+Public documentUrl as String
+Public documentDirectory as String
+Public documentPageStyle as Object
+
+Public SFA as Object
+Public quote as String
+
+Private theCursor as Object
+
+&apos; global setup
+Sub initExample
+
+	&apos; set global defaults
+	pngResolution = 300 &apos; dpi of generated graphics
+
+	&apos; set defaults for examples generated from scratch
+	exampleScale = 1.8 &apos; distance between staff lines
+	exampleMargin = 0.0 &apos; amount of extra margin (default is to take all usable page width)
+
+	&apos; load various extensions
+	SFA = createUnoService(&quot;com.sun.star.ucb.SimpleFileAccess&quot;)
+	if not GlobalScope.BasicLibraries.isLibraryLoaded(&quot;Tools&quot;) then
+		GlobalScope.BasicLibraries.LoadLibrary(&quot;Tools&quot;)
+	end if
+
+	&apos; app title and initialization
+	extensionName = &quot;msem&quot;
+	extensionTitle = &quot;MuseScore Example Manager&quot;
+	iniKeyValuePairs = readIniFile(extensionTitle,extensionName)
+	if IsNull(iniKeyValuePairs) then
+		&apos; don&apos;t worry if there is no INI file;
+		&apos; we&apos;ll populate it as we go
+		&apos; but this is where we&apos;d create one if we wanted to
+	end if
+
+	&apos; other global variables
+
+	quote = Chr(34)
+
+	documentUrl = thisComponent.url
+	if documentUrl = &quot;&quot; then
+		documentDirectory = &quot;&quot;
+	else
+		&apos; OK to use &quot;/&quot; since this is a URL
+		documentDirectory = DirectoryNameOutOfPath(documentUrl,&quot;/&quot;)
+	end if
+
+	dim oDoc as Object, oViewCursor as Object, oPageStyleName as String, oPageStyles as Object, oSelection
+	oDoc = thisComponent
+	oViewCursor = oDoc.CurrentController.getViewCursor
+	oPageStyleName = oViewCursor.PageStyleName
+	oPageStyles = oDoc.StyleFamilies.getByName(&quot;PageStyles&quot;)
+	documentPageStyle = oPageStyles.getByName(oPageStyleName)
+	oSelection = oDoc.getCurrentSelection
+	if oSelection.supportsService(&quot;com.sun.star.text.TextRanges&quot;) then
+		theCursor = oViewCursor.getText.createTextCursorByRange(oViewCursor)
+	end if
+
+End Sub
+
+Sub insertExample (graphicURL as String, linkUrl as String, desc as String)
+
+	dim oText as Object, oGraphicObject as Object
+
+	oText = thisComponent.getText
+
+	&apos; initialize graphic
+	oGraphicObject = thisComponent.createInstance(&quot;com.sun.star.text.GraphicObject&quot;)
+	oGraphicObject.GraphicURL = graphicUrl
+	oGraphicObject.AnchorType = com.sun.star.text.TextContentAnchorType.AS_CHARACTER
+
+	&apos; attach hyperlink
+	oGraphicObject.HyperLinkURL = linkUrl
+
+	&apos; attach description
+	oGraphicObject.Title = extensionTitle
+	oGraphicObject.Description = desc
+
+	&apos; insert graphic
+	oText.insertTextContent(theCursor,oGraphicObject,true)
+
+	&apos; possibly resize to fit
+	sizeGraphic(oGraphicObject)
+
+End Sub
+
+Sub updateExample (oldGraphicObject as Object, newGraphicUrl as String)
+
+	dim oText as Object, oCursor as Object, oViewCursor
+	dim newGraphicObject as Object
+
+	&apos; initialize graphic
+	newGraphicObject = thisComponent.createInstance(&quot;com.sun.star.text.GraphicObject&quot;)
+	newGraphicObject.GraphicURL = newGraphicUrl
+	newGraphicObject.AnchorType = com.sun.star.text.TextContentAnchorType.AS_CHARACTER
+
+	&apos; attach hyperlink
+	newGraphicObject.HyperLinkURL = oldGraphicObject.HyperLinkUrl
+
+	&apos; attach description
+	newGraphicObject.Title = extensionTitle
+	newGraphicObject.Description = oldGraphicObject.Description
+
+	&apos; replace old graphic object
+	oText = thisComponent.getText
+	oCursor = oText.createTextCursorByRange(oldGraphicObject.getAnchor)
+	oldGraphicObject.dispose
+	oText.insertTextContent(oCursor,newGraphicObject,true)
+
+	&apos; possibly resize to fit
+	sizeGraphic(newGraphicObject)
+
+	&apos; fix cursor
+	oViewCursor = thisComponent.getCurrentController.getViewCursor
+	oViewCursor.collapseToStart
+	oViewCursor.gotoRange(oCursor,false)
+
+End Sub
+
+Sub reDrawGraphic (g as Object)
+
+	dim savedUrl as String
+
+	savedUrl = g.GraphicURL
+	g.GraphicURL = &quot;&quot;
+	g.GraphicURL = savedUrl
+
+End Sub
+
+Sub sizeGraphic (g as Object)
+&apos; resizes graphic (if necessary) to fit within page margins
+
+	dim usableWidth as Long
+
+	usableWidth = documentPageStyle.Width - (documentPageStyle.LeftMargin + documentPageStyle.RightMargin)
+	if g.ActualSize.Width &gt; usableWidth then
+		dim autoResize as String
+		dim userAnswer as Integer
+		userAnswer = 2 &apos; 2=Cancel
+		autoResize = iniGetValue(iniKeyValuePairs,&quot;RESIZE&quot;)
+		if autoResize = &quot;&quot; then
+			userAnswer = myDialogBox(&quot;Example too wide to fit within margins. Shrink to fit?&quot;,3) &apos; 3=Yes/No/Cancel
+			if userAnswer = 6 then &apos; 6=Yes
+				autoResize = &quot;TRUE&quot;
+			elseif userAnswer = 7 then &apos; 7=No
+				autoResize = &quot;FALSE&quot;
+			endif
+		end if
+		if autoResize = &quot;TRUE&quot; then
+			dim ratio as Double
+			ratio = usableWidth / g.ActualSize.Width
+			&apos; set the new size
+			g.Width = usableWidth
+			g.Height = g.ActualSize.Height * ratio
+		end if
+		if userAnswer &lt;&gt; 2 then
+			iniAddPair(iniKeyValuePairs,&quot;RESIZE&quot;,autoResize,extensionTitle,extensionName)
+		end if
+	end if
+
+End Sub
+
+Function userSelectExampleName (existing as Boolean, initialFile as String, filter as String) as String
+
+	dim fp as Object, args(1) as Integer
+
+	userSelectExampleName = &quot;&quot;
+	fp = createUnoService(&quot;com.sun.star.ui.dialogs.FilePicker&quot;)
+	if existing then
+		args(0) = com.sun.star.ui.dialogs.TemplateDescription.FILEOPEN_SIMPLE
+	else
+		args(0) = com.sun.star.ui.dialogs.TemplateDescription.FILESAVE_SIMPLE
+	end if
+	fp.Initialize(args)
+	if documentDirectory &lt;&gt; &quot;&quot; then
+		fp.setDisplayDirectory(documentDirectory)
+	end if
+	fp.appendFilter(&quot;Example files&quot;,filter)
+	if not existing then
+		fp.setDefaultName(initialFile)
+	end if
+	if fp.execute = 1 then
+		userSelectExampleName = fp.Files(0)
+	end if
+
+End Function
+
+Function basePath (path as String) as String
+&apos; returns path name including file name but without extension
+
+	dim startpos as Integer, curpos as Integer
+	dim fileName as String
+
+	startpos = 1
+	curpos = 1
+	do while curpos &lt;&gt; 0
+		curpos = InStr(startpos,path,&quot;.&quot;)
+		if curpos &lt;&gt; 0 then
+			startpos = curpos + 1
+		end if
+	loop
+	basePath = Left(path,startpos-2)
+
+End Function
+
+Function changeExtension (path as String, ext as String) as String
+&apos; returns new path with extension replaced by ext
+	changeExtension = basePath(path) + &quot;.&quot; + ext
+End Function
+
+&apos; returns true if path1 exists and is at least as new as path2 (or path2 does not exist)
+Function newer (path1 as String, path2 as String) as Boolean
+
+	if not FileExists(path1) then
+		newer = false
+	elseif not FileExists(path2) then
+		newer = true
+	else
+		dim t1 as Object, t2 as Object
+		t1 = SFA.getDateTimeModified(path1)
+		t2 = SFA.getDateTimeModified(path2)
+		if t1.Year &gt; t2.Year then
+			newer = true
+		elseif t1.Year &lt; t2.Year then
+			newer = false
+		elseif t1.Month &gt; t2.Month then
+			newer = true
+		elseif t1.Month &lt; t2.Month then
+			newer = false
+		elseif t1.Day &gt; t2.Day then
+			newer = true
+		elseif t1.Day &lt; t2.Day then
+			newer = false
+		elseif t1.Hours &gt; t2.Hours then
+			newer = true
+		elseif t1.Hours &lt; t2.Hours then
+			newer = false
+		elseif t1.Minutes &gt; t2.Minutes then
+			newer = true
+		elseif t1.Minutes &lt; t2.Minutes then
+			newer = false
+		elseif t1.Seconds &gt; t2.Seconds then
+			newer = true
+		elseif t1.Seconds &lt; t2.Seconds then
+			newer = false
+		elseif t1.HundredthSeconds &gt; t2.HundredthSeconds then
+			newer = true
+		elseif t1.HundredthSeconds &lt; t2.HundredthSeconds then
+			newer = false
+		else
+			&apos; if all times are equal, let&apos;s call that newer (crossing fingers here)
+			newer = true		
+		end if
+	end if
+
+End Function
+
+Function myShell (cmd as String, w as Integer, args as String, wait as Boolean) as Long
+&apos; replace cmd by value from INI file
+&apos; if no INI value, prompt for value and add to INI
+&apos; INI value can contain args after &quot;;&quot;
+&apos; invoke shell normally
+
+	dim value as String, path as String, iniArgs as String
+	dim userInput as Boolean
+
+	myShell = -1
+	userInput = false
+	&apos; get location of executable from INI
+	value = iniGetValue(iniKeyValuePairs,cmd)
+	if value = &quot;&quot; then
+		&apos; no value in INI
+		dim guess as String
+		guess = guessPath(cmd)
+		if FileExists(guess) then
+			value = guess
+		else
+			dim msg as String
+			msg = &quot;This is the first time &quot; + extensionTitle + &quot; is invoking &quot; + cmd + &quot;.&quot; + Chr(10)
+			msg = msg + &quot;Please enter full pathname of executable file:&quot;
+			value = myInputBox(msg,guess)
+			if value = &quot;&quot; then
+				exit Function
+			end if
+			&apos; at this point, we know only that info has been entered
+			&apos; we will validate it and update the INI *after* we finish parsing it,
+			&apos; since we have to do the parsing first anyhow
+			userInput = true
+		end if
+	end if
+	&apos; parse to allow optional arguments after &quot;;&quot;
+	dim pathargs() as String
+	pathargs = Split(value,&quot;;&quot;)
+	path = pathargs(0)
+	if UBound(pathargs) &gt;= 1 then
+		iniArgs = pathargs(1)
+		args = iniArgs + &quot; &quot; + args
+	else
+		iniArgs = &quot;&quot;
+	end if
+	&apos; validate path
+	if not FileExists(path) then
+		myMsgBox(path+&quot; not found&quot;)
+		exit Function
+	end if
+	&apos; if this is new user input, perform further validation then update INI
+	if userInput then
+		if SFA.isFolder(path) then
+			&apos; assume user selected correct directory and just forgot to add the filename
+			path = path + GetPathSeparator + guessExecutable(cmd)
+		end if
+		if not FileExists(path) then
+			myMsgBox(path+&quot; not found&quot;)
+			exit Function
+		end if
+		if iniArgs &lt;&gt; &quot;&quot; then
+			value = path + &quot;;&quot; + iniArgs
+		else
+			value = path
+		end if
+		iniAddPair(iniKeyValuePairs,cmd,value,extensionTitle,extensionName)
+	end if
+
+	path = ConvertToUrl(path)
+	myShell = shell(path,w,args,wait)
+
+End Function
+
+Sub myMsgBox (s as String)
+&apos; displays message with extension name as dialog title
+	MsgBox(s,0,extensionTitle)
+End Sub
+
+Function myInputBox (s as String, default as String) as String
+&apos; prompts for input with extension name as dialog title
+	myInputBox = InputBox(s,extensionTitle,default)
+End Function
+
+Function myDialogBox (s as String, buttons as Integer) as Integer
+&apos; basic dialog with buttons
+	myDialogBox = MsgBox(s,buttons,extensionTitle)
+End Function
+
+Function userSelectExecutablePath (initialFile as String) as String
+
+	dim fp as Object, args(1) as Integer
+
+	userSelectExecutablePath = &quot;&quot;
+	fp = createUnoService(&quot;com.sun.star.ui.dialogs.FilePicker&quot;)
+	args(0) = com.sun.star.ui.dialogs.TemplateDescription.FILEOPEN_SIMPLE
+	fp.Initialize(args)
+	fp.setDefaultName(initialFile)
+	if fp.execute = 1 then
+		userSelectExecutablePath = ConvertFromURL(fp.Files(0))
+	end if
+
+End Function
+
+Function guessPath (cmd as String) as String
+	dim guessDir as String
+	if getOS = &quot;Windows&quot; then
+		guessDir = &quot;C:\Program Files (x86)\MuseScore 2\bin\&quot;
+	elseif FileExists(&quot;/Applications/MuseScore 2.app/&quot;) then
+		guessDir = &quot;/Applications/MuseScore 2.app/Contents/MacOS/&quot;
+	else
+		guessDir = &quot;/usr/bin/&quot;
+	end if
+	guessPath = guessDir + guessExecutable(cmd)
+End Function
+
+Function guessExecutable (cmd as String) as String
+	if getOS = &quot;Windows&quot; then
+		if cmd = &quot;mscore&quot; then
+			guessExecutable = &quot;MuseScore.exe&quot;
+		else
+			guessExecutable = cmd + &quot;.exe&quot;
+		end if
+	else
+		guessExecutable = cmd
+	end if
+End Function
+
+</script:module>
