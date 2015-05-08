@@ -4,8 +4,9 @@
 The extension runs equally well on LibreOffice (LO) and Apache OpenOffice (AOO).
 Where you see OpenOffice (OO) written in this guide you may assume it applies to both.
 
-- The latest stable version is available from the [LibreOffice Extension Centre](http://extensions.libreoffice.org/extension-center/musescore-example-manager)
-  , along with past releases.
+- Instructions, and the latest stable version, are available from the
+  [LibreOffice Extension Centre](http://extensions.libreoffice.org/extension-center/musescore-example-manager),
+  along with past releases.
 - Development is done through [GitHub](https://github.com/MarcSabatella/MuseScoreExampleManager).
   Code contributions are welcome via [Pull Requests](https://help.github.com/articles/using-pull-requests/).
 
@@ -85,7 +86,7 @@ To "compile" (package) the source code into an OXT extension file:
 
 1. Delete any temporary autosave files in the package directory (they
    may be hidden) to avoid including them in the final package. (If using
-   Git this can be done with the command `$ git clean -fxd`).
+   Git this can be done with the command `$ git clean -fXd`).
 2. Open the Writer document _"musescore.odt"_ and run the macro on page 8.
 
 You may have to give permission for the macro to run. It will also require a copy
