@@ -9,19 +9,21 @@ Where you see OpenOffice (OO) written in this guide you may assume it applies to
 - Development is done through [GitHub](https://github.com/MarcSabatella/MuseScoreExampleManager).
   Code contributions are welcome via [Pull Requests](https://help.github.com/articles/using-pull-requests/).
 
-For the extension to function, full copies of [MuseScore](https://musescore.org/) and
-[ImageMagick](http://www.imagemagick.org/) must be present on the system. The extension
-works by running MuseScore in the background to generate PNG images from sheet music (.mscz)
-files. These PNG images are trimmed by ImageMagick and inserted into the OpenOffice
-document. It is easy to update the images later if the original score is modified.
+For the extension to function, full copies of [MuseScore](https://musescore.org/)
+and [ImageMagick](http://www.imagemagick.org/) must be present on the system.
+The extension works by running MuseScore in the background to generate PNG
+images from sheet music (.mscz) files. These PNG images are trimmed by
+ImageMagick and inserted into the OpenOffice document. It is easy to update
+the images later if the original score is modified.
 
 ## Usage: inserting and updating sheet music images
 
-From within OpenOffice, put the cursor where you want a sheet music example to appear. Go to
-*"Insert -> MuseScore Example"* and select an MSCZ file.  A graphic representation of
-the example (with excess whitespace automatically trimmed) will be generated and inserted
-into your document with a link to the original MSCZ file.  Ctrl-click the example to edit
-it further in MuseScore.  After editing and saving the example in MuseScore, you can select
+From within OpenOffice, put the cursor where you want a sheet music example
+to appear. Go to *"Insert -> MuseScore Example"* and select an MSCZ file. A
+graphic representation of the example (with excess whitespace automatically
+trimmed) will be generated and inserted into your document with a link to
+the original MSCZ file.  Ctrl-click the example to edit it further in
+MuseScore. After editing and saving the example in MuseScore, you can select
 the graphic in OpenOffice and press the MuseScore button again to update it.
 
 ## Installation: adding the extension to LibreOffice / Apache OpenOffice
@@ -50,7 +52,7 @@ for the file path to the MuseScore excecuteable. The default paths are:
 
 - __Windows:__ _"C:\Program Files (x86)\MuseScore X\bin\MuseScore.exe"_ (*X* is version number).
 - __Mac:__ _"/Applications/MuseScore X.app/Contents/MacOS/mscore"_ (*X* is version number).
-- __Linux:__ _"/usr/bin/mscore"_ (or the output of the Terminal command `which mscore`).
+- __Linux:__ _"/usr/bin/mscore"_ (or the output of the Terminal command `$ which mscore`).
 
 Note: if you have multiple copies of MuseScore installed then make sure
 you give the path to the correct version.
@@ -72,15 +74,18 @@ share your changes with the world, then you must use GitHub (see below).
 
 ### Compiling and Packaging
 
-The file _"musescore.odt"_ contains OpenOffice macros that perform the whole packaging process for you
-(it's a copy of the [OpenOffice Extension Compiler](https://wiki.openoffice.org/wiki/Extensions_Packager#Extension_Compiler)).
-It analyses the code and generates some XML manifest documents which are packaged up with the source code
-inside a ZIP archive. The archive is given the OXT extension and it is this that is added to OpenOffice.
+The file _"musescore.odt"_ contains OpenOffice macros that perform
+the whole packaging process for you (it's a copy of the
+[OpenOffice Extension Compiler](https://wiki.openoffice.org/wiki/Extensions_Packager#Extension_Compiler)).
+It analyses the code and generates some XML manifest documents which are
+packaged up with the source code inside a ZIP archive. The archive is given
+the OXT extension and it is this that is added to OpenOffice.
 
 To "compile" (package) the source code into an OXT extension file:
 
 1. Delete any temporary autosave files in the package directory (they
-   may be hidden) to avoid including them in the final package.
+   may be hidden) to avoid including them in the final package. (If using
+   Git this can be done with the command `$ git clean -fxd`).
 2. Open the Writer document _"musescore.odt"_ and run the macro on page 8.
 
 You may have to give permission for the macro to run. It will also require a copy
@@ -90,8 +95,11 @@ adequate, and can be found in the default repository of many Linux distributions
 
 ### Contributing via GitHub
 
-Code contributions are welcome and should be submitted in the form of Pull Requests.
-Detailed instructions are available elsewhere.
+Code contributions are welcome and should be submitted in the form of
+[Pull Requests](https://help.github.com/articles/using-pull-requests/).
+Detailed instructions are available
+[elsewhere](https://help.github.com/articles/good-resources-for-learning-git-and-github/).
 
-Unlike most projects on GitHub, this one contains a copy of the compiled program as well
-as the raw source code. Make sure you repackage **before** you submit the Pull Request.
+Unlike most projects on GitHub, this one contains a copy of the compiled
+program as well as the raw source code. **Make sure you recompile**
+(having first rebased) **before** you submit the Pull Request.
