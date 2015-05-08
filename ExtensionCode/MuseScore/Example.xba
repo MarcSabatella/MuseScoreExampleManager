@@ -38,7 +38,7 @@ Sub initExample
 	end if
 
 	&apos; app title and initialization
-	extensionName = &quot;msem&quot;
+	extensionName = &quot;msem2&quot;
 	extensionTitle = &quot;MuseScore Example Manager&quot;
 	iniKeyValuePairs = readIniFile(extensionTitle,extensionName)
 	if IsNull(iniKeyValuePairs) then
@@ -284,23 +284,22 @@ Function myShell (cmd as String, w as Integer, args as String, wait as Boolean) 
 	value = iniGetValue(iniKeyValuePairs,cmd)
 	if value = &quot;&quot; then
 		&apos; no value in INI
+		dim msg as String
 		dim guess as String
 		guess = guessPath(cmd)
 		if FileExists(guess) then
-			value = guess
+			msg = &quot;Please confirm pathname of executable file for &quot; + cmd + &quot;:&quot;
 		else
-			dim msg as String
-			msg = &quot;This is the first time &quot; + extensionTitle + &quot; is invoking &quot; + cmd + &quot;.&quot; + Chr(10)
-			msg = msg + &quot;Please enter full pathname of executable file:&quot;
-			value = myInputBox(msg,guess)
-			if value = &quot;&quot; then
-				exit Function
-			end if
-			&apos; at this point, we know only that info has been entered
-			&apos; we will validate it and update the INI *after* we finish parsing it,
-			&apos; since we have to do the parsing first anyhow
-			userInput = true
+			msg = &quot;Please enter pathname of executable file for &quot; + cmd + &quot;:&quot;
 		end if
+		value = myInputBox(msg,guess)
+		if value = &quot;&quot; then
+			exit Function
+		end if
+		&apos; at this point, we know only that info has been entered
+		&apos; we will validate it and update the INI *after* we finish parsing it,
+		&apos; since we have to do the parsing first anyhow
+		userInput = true
 	end if
 	&apos; parse to allow optional arguments after &quot;;&quot;
 	dim pathargs() as String

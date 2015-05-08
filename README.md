@@ -10,17 +10,17 @@ Where you see OpenOffice (OO) written in this guide you may assume it applies to
 - Development is done through [GitHub](https://github.com/MarcSabatella/MuseScoreExampleManager).
   Code contributions are welcome via [Pull Requests](https://help.github.com/articles/using-pull-requests/).
 
-For the extension to function, full copies of [MuseScore](https://musescore.org/)
-and [ImageMagick](http://www.imagemagick.org/) must be present on the system.
+For the extension to function, [MuseScore](https://musescore.org/)
+must be present on the system.
 The extension works by running MuseScore in the background to generate PNG
-images from sheet music (.mscz) files. These PNG images are trimmed by
-ImageMagick and inserted into the OpenOffice document. It is easy to update
+images from sheet music (.mscz) files. It is easy to update
 the images later if the original score is modified.
 
 ## Usage: inserting and updating sheet music images
 
 From within OpenOffice, put the cursor where you want a sheet music example
-to appear. Go to *"Insert -> MuseScore Example"* and select an MSCZ file. A
+to appear. Click the MuseScore icon on the toolbar or
+go to *"Insert -> MuseScore Example"* and select an MSCZ file. A
 graphic representation of the example (with excess whitespace automatically
 trimmed) will be generated and inserted into your document with a link to
 the original MSCZ file.  Ctrl-click the example to edit it further in
@@ -33,7 +33,7 @@ Before commencing, ensure you have a working copy of [MuseScore](https://musesco
 
 1. Download the [MuseScoreExampleManager](http://extensions.libreoffice.org/extension-center/musescore-example-manager)
    extension package (*.oxt* file) onto your computer. It will be called _"musescore-X.Y.Z.oxt"_
-   where *X.Y.Z* corresponds to the target MuseScore version (e.g. 2.0.1).
+   where *X.Y.Z* corresponds to the extension version.
 2. Save and close any open OpenOffice documents.
 3. Open a new Writer document.
 4. Go to _Tools -> Extension Manager... -> Add..._ and locate the *.oxt* file.
@@ -55,14 +55,11 @@ for the file path to the MuseScore excecuteable. The default paths are:
 - __Mac:__ _"/Applications/MuseScore X.app/Contents/MacOS/mscore"_ (*X* is version number).
 - __Linux:__ _"/usr/bin/mscore"_ (or the output of the Terminal command `$ which mscore`).
 
+If the extension detects a copy of MuseScore in the default location,
+you can simply confirm the location that is already entered for you.
+
 Note: if you have multiple copies of MuseScore installed then make sure
 you give the path to the correct version.
-
-### Locating "mogrify" (ImageMagick)
-
-On first run you will also be prompted for the path to the "mogrify"
-command provided by the [ImageMagick](http://www.imagemagick.org/) program.
-This is used to trim excess whitespace from the edges of sheet music images.
 
 ## Development: adding new features to the MuseScoreExampleManager extension
 
@@ -104,3 +101,4 @@ Detailed instructions are available
 Unlike most projects on GitHub, this one contains a copy of the compiled
 program as well as the raw source code. **Make sure you recompile**
 (having first rebased) **before** you submit the Pull Request.
+
